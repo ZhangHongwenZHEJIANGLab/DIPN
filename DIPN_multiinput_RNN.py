@@ -12,6 +12,9 @@ from keras.utils.vis_utils import plot_model
 # 2、数据处理
 raw_data = pd.read_csv("wide_and_deep.csv", header=None)  # ————需加header=None
 raw_data = raw_data
+
+raw_data = raw_data
+raw_data = raw_data
 # print("########################################################################")
 # print(raw_data)
 
