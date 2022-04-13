@@ -1,2 +1,3 @@
 # DIPN
-用于在深度学习中融入单调性和平滑行先验知识的DIPN模型
+Data_generation 为数据生成函数
+DIPN_V1为训练函数
