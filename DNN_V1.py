@@ -1,14 +1,14 @@
 ###############################################################################################
-# 一、预载入模块
+# 一、预载入
 ###############################################################################################
 # 1.1 python
 import math
 import numpy as np
 import pandas as pd
-# 1.2 tensor_flow的模块
+# 1.2 tensor_flow
 import tensorflow as tf
 from tensorflow import keras, nn
-# 1.3 keras的模块
+# 1.3 keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import StringLookup, IntegerLookup, Dense, Concatenate, Input
 # 1.4 作图
@@ -20,14 +20,8 @@ from keras.utils.vis_utils import plot_model
 ###############################################################################################
 # 1、读取数据
 raw_data = pd.read_csv("Excite1.csv")  # ————需加header=None
-# print("########################################################################")
-# print(raw_data)
-
 # 2、读取数据的头
 Csv_Haeder = list(raw_data.columns)
-print("数据集的头为")
-print( Csv_Haeder )
-
 # 3、训练集和测试集的定义
 train_splits = []
 test_splits = []
@@ -39,7 +33,6 @@ for _, group_data in raw_data.groupby("label"):
 # 3.2 进一步处理采样并重设
 train_data = pd.concat(train_splits).sample(frac=1).reset_index(drop=True)
 test_data = pd.concat(test_splits).sample(frac=1).reset_index(drop=True)
-
 # 3.3 存储
 train_data_file = "train_data_excite.csv"
 test_data_file = "test_data_excite.csv"
@@ -56,8 +49,9 @@ Target_Feature_Name = "label"
 Target_Feature_Labels = [0, 1]
 
 # 2、特征名
-Feature_Names_Other = ["category_1", "category_2", "category_3", "category_4"]
-Feature_Names_Promotion = ["promotion" ]
+Feature_Names = Csv_Haeder
+Feature_Names = Feature_Names[:5]
+Categorical_Feature_Names = Feature_Names[:4]
 # 3、类别变量字典
 Categorical_Features_With_Vocabulary = {
     "category_1": list(raw_data["category_1"].unique()),
@@ -65,10 +59,8 @@ Categorical_Features_With_Vocabulary = {
     "category_3": list(raw_data["category_3"].unique()),
     "category_4": list(raw_data["category_4"].unique()),
 }
-
-Num_Classes= len( Target_Feature_Labels )  # 7
 ###############################################################################################
-# 三、元数据定义
+# 四、数据打包、模型训练等
 ###############################################################################################
 # 1 取出以批数据集的函数
 #                        文件路径         批的规模     是否shuffle
@@ -93,72 +85,50 @@ num_epochs = 100        # D、epochs
 hidden_units1 = 32
 # 3、训练函数
 def run_experiment(model):
-    # 6.1 模型编译
+    # 3.1 模型编译
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate),  # A、优化器——设置学习率
-        loss=keras.losses.BinaryCrossentropy(),
-        metrics=[keras.metrics.BinaryAccuracy(name="accuracy")],
+        loss=keras.losses.BinaryCrossentropy(),                        # B、损失函数
+        metrics=[keras.metrics.BinaryAccuracy(name="accuracy")],       # C、度量
     )
-    # 6.2 训练集
+    # 3.2 训练集
     train_dataset = get_dataset_from_csv(train_data_file, batch_size, shuffle=True)
-    print( train_dataset )
-    # 6.3 测试集
+    # 3.3 测试集
     test_dataset = get_dataset_from_csv(test_data_file, batch_size)
-    # 6.4 训练
+    # 3.4 训练
     print("Start training the model...")
     history = model.fit(train_dataset, epochs=num_epochs)  # 自带循环
     print("Model training finished")
     # 6.5 返回结果————测试
     _, accuracy = model.evaluate(test_dataset, verbose=0)
-
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
 
 ###############################################################################################
-# 四、嵌入层
+# 五、嵌入层
 ###############################################################################################
 # 1、构建其它特征的输入：shape构建为()的形式
-def create_model_inputs_other():
+def create_model_inputs():
     inputs = {}
-    for feature_name in Feature_Names_Other:
+    for feature_name in Feature_Names:
         inputs[feature_name] = layers.Input(name=feature_name, shape=(), dtype=tf.float32 )
     return inputs
-# 2、构建激励特征的输入
-def create_model_inputs_Promotion():
-    input = {}
-    input["promotion"] = layers.Input(name="promotion", shape=(), dtype=tf.float32 )
-    return input
-
-# 3、类别特征的one-hot
-def encode_Category(inputs):
+# 2、类别特征的one-hot————不进行嵌入，直接
+def encode_inputs(inputs):
     encoded_features = []
     for feature_name in inputs:
-        vocabulary = Categorical_Features_With_Vocabulary[ feature_name ]
-        lookup = IntegerLookup(
-            vocabulary=vocabulary,
-            mask_token=None,
-            num_oov_indices=0,
-            output_mode="int",
-        )
-        encoded_feature = lookup(inputs[feature_name])    # one-hot
-        embedding_dims = int(math.sqrt(len(vocabulary)))  # 进一步嵌入的维度
-        embedding = layers.Embedding(input_dim=len(vocabulary), output_dim=embedding_dims)  # 进一步嵌入的函数
-        encoded_feature = embedding(encoded_feature)                                        # 进一步嵌入,当前输出结果为(None,2,1)
+        if feature_name in Categorical_Feature_Names:
+            vocabulary = Categorical_Features_With_Vocabulary[ feature_name ]
+            lookup = IntegerLookup(
+                vocabulary=vocabulary,
+                mask_token=None,
+                num_oov_indices=0,
+                output_mode="binary",
+            )
+            encoded_feature = lookup(tf.expand_dims(inputs[feature_name], -1))
+        else:
+            encoded_feature = tf.expand_dims(inputs[feature_name], -1)
         encoded_features.append(encoded_feature)    # 添加！
     all_features = layers.concatenate(encoded_features)
-    return all_features
-# 4、等渗嵌入
-def encode_Promotion(inputs):
-    encoded_features = []
-    inputs_iso = inputs["promotion"]
-    for i in range( 100 ):
-        level = tf.constant(i, dtype=tf.float32)                  # A、比较标准
-        encoder_bit = tf.math.greater(inputs_iso, level)          # B、逐个比较
-        encoder_bit = tf.cast(encoder_bit, tf.float32, name=None) # C、类型转换
-        encoded_bit_expDims = tf.expand_dims(encoder_bit, -1)     # D、扩展维度
-        encoded_features.append(encoded_bit_expDims)              # E、加入该位
-        a = 1
-    all_features = layers.concatenate(encoded_features)           # F、合并返回
-    a = 1
     return all_features
 
 ###############################################################################################
@@ -166,34 +136,18 @@ def encode_Promotion(inputs):
 ###############################################################################################
 def create_model():
     # 1、输入定义
-    inputs_Category = create_model_inputs_other()
-    inputs_Promotion = create_model_inputs_Promotion()
-
+    inputs_Category = create_model_inputs()
     # 2、特征嵌入
-    encode1_Category  = encode_Category(inputs_Category)
-    encode1_Promotion = encode_Promotion(inputs_Promotion)
-    # 3、bias_net ###########################################################
-    Bias_hidden = layers.Dense(hidden_units1 , name = 'Bias_Mlp1')(encode1_Category)
+    encode_Category  = encode_inputs(inputs_Category)
+    # 3、多层MLP
+    Bias_hidden = layers.Dense(hidden_units1 , name = 'Bias_Mlp1')(encode_Category)
     Bias_hidden = layers.Dense(hidden_units1, name='Bias_Mlp2')(Bias_hidden)
     Bias_hidden = layers.Dense(hidden_units1 , name = 'Bias_Last')(Bias_hidden)
-    # features_bias = Dense(1, activation='sigmoid', name='bias_representation')(Bias_hidden)
-    bias_prediction = Dense(1, activation='leaky_relu', name='bias_prediction')(Bias_hidden) # 维度为(None,1)
+    prediction = Dense(1, activation='sigmoid', name='click_prediction')(Bias_hidden) # 维度为(None,1)
 
-    # 4、uplift-net
-    encode_feature_R = layers.RepeatVector(100)(encode1_Category)   # 4.1 输入——RepeatVector
-    out = layers.GRU(32, return_sequences=True, name='Simple_RNN1')(encode_feature_R, initial_state=Bias_hidden)
-    weight_out = Dense(1, activation='softplus', name='bias_representation')(out)  # 维度为（None,100,1）
-    weight_out1 = layers.Reshape((100,))(weight_out)
-
-    # 5、乘积以预测响应
-    W_dot_E = layers.Dot(axes=1, name='inner_product')([weight_out1, encode1_Promotion])
-    W_dot_E_add_B = layers.Add()([W_dot_E,bias_prediction])
-    prediction = keras.activations.sigmoid(W_dot_E_add_B)
-
-    model_RNN = keras.models.Model(inputs=encode1_Category, outputs=weight_out)   #
+    model = keras.models.Model(inputs=inputs_Category, outputs=prediction)   #
     # model_RNN.summary()
-    #plot_model(model_RNN, to_file='model_RNN111.png', show_shapes=True, rankdir="LR")
-    model = keras.models.Model(inputs=[inputs_Category, inputs_Promotion], outputs=prediction)
+    #plot_model(model, to_file='DNN_V1.png', show_shapes=True, rankdir="LR")
     #plot_model(model, to_file='Dipn_Final.png',show_shapes=True, rankdir="LR")
     return model
 ###############################################################################################

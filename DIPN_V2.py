@@ -137,12 +137,9 @@ def encode_Category(inputs):
             vocabulary=vocabulary,
             mask_token=None,
             num_oov_indices=0,
-            output_mode="int",
+            output_mode="binary",
         )
-        encoded_feature = lookup(inputs[feature_name])    # one-hot
-        embedding_dims = int(math.sqrt(len(vocabulary)))  # 进一步嵌入的维度
-        embedding = layers.Embedding(input_dim=len(vocabulary), output_dim=embedding_dims)  # 进一步嵌入的函数
-        encoded_feature = embedding(encoded_feature)                                        # 进一步嵌入,当前输出结果为(None,2,1)
+        encoded_feature = lookup(tf.expand_dims(inputs[feature_name], -1))                                       # 进一步嵌入,当前输出结果为(None,2,1)
         encoded_features.append(encoded_feature)    # 添加！
     all_features = layers.concatenate(encoded_features)
     return all_features
