@@ -96,8 +96,8 @@ def run_experiment(model):
     # 6.1 模型编译
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate),  # A、优化器——设置学习率
-        loss=keras.losses.binary_crossentropy(from_logits=True),             # B、损失函数
-        metrics=['accuracy'],           # C、度量
+        loss=keras.losses.BinaryCrossentropy(),
+        metrics=[keras.metrics.BinaryAccuracy(name="accuracy")],
     )
     # 6.2 训练集
     train_dataset = get_dataset_from_csv(train_data_file, batch_size, shuffle=True)
