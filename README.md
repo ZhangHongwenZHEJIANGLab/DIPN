@@ -1,4 +1,5 @@
 # DIPN
+<<<<<<< HEAD
 * 1、Data_generation.py为数据生成函数
 
 * 2、DIPN_V1为第一版的DIPN，在该版本中，对类别特征进行one-hot之后，还进行了embedding
@@ -9,3 +10,7 @@
 * 4、DNN_V1为只用MLP进行拟合的结果，其中将激励水平作为一个数值特征
 
 * 5、DIPN_V3为第三办的DIPN，将其中的GRU换为MLP，待完成
+=======
+Data_generation 为数据生成函数
+DIPN_V1为训练函数
+>>>>>>> 425bcbb8ec9525bfbc776d22bc7118d81dce8d1d
